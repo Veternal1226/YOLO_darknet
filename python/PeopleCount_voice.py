@@ -185,10 +185,10 @@ wave_obj = sa.WaveObject.from_wave_file("./mask.wav")
 wave_delay = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--debug", type=int, default=0)
-parser.add_argument("--voiceout", type=int, default=1)
-parser.add_argument("--maxpeople", type=int, default=5)
-parser.add_argument("--cooldown", type=int, default=10)
+parser.add_argument("--debug", type=int, default=0, help="Debug mode: 0:close, 1:open.")
+parser.add_argument("--voiceout", type=int, default=1, help="Voice reminder: 0:close, 1:open.")
+parser.add_argument("--maxpeople", type=int, default=5, help="Notification threshold (People). type:int")
+parser.add_argument("--cooldown", type=int, default=10, help="Voice interval. type:int")
 
 args = parser.parse_args()
 DEBUG = args.debug
