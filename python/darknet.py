@@ -44,7 +44,7 @@ class METADATA(Structure):
 
     
 
-lib = CDLL("/home/veterlab/Desktop/RTES/chatbot_YOLO/darknet/libdarknet.so", RTLD_GLOBAL)
+lib = CDLL("$(pwd)/libdarknet.so", RTLD_GLOBAL)
 #lib = CDLL("libdarknet.so", RTLD_GLOBAL)
 lib.network_width.argtypes = [c_void_p]
 lib.network_width.restype = c_int

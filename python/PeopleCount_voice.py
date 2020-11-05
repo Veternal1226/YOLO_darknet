@@ -33,7 +33,7 @@ def generate_colors(num_classes):
     random.seed(None)  # Reset seed to default.
 
 
-def draw_boxes(img, result):
+def draw_boxes(img, result,wave_delay):
     classArr = []
 
     image = Image.fromarray(img)
@@ -92,17 +92,25 @@ def draw_boxes(img, result):
     draw.text(np.array([0,0]), str('目前在場人數：　')+str(classArr.count('person')), fill=(255, 255, 255), font=fontCount)
     # if person count too many (4) , draw notice message
     if(classArr.count('person')>0):
+        timeNow = time.time()
         draw.rectangle([0,50,480,90],fill=(0,0,255))
         draw.text(np.array([0,40]), str('請保持社交距離或戴上口罩'), fill=(255, 255, 255), font=fontCount)
-        play_obj = wave_obj.play()
-        play_obj.wait_done()
+        if( (timeNow - wave_delay) >10 ):
+            print("\ntrigger by: "+str(timeNow)+" - "+str(wave_delay)+" = "+str(timeNow - wave_delay)+" sec\n")
+            wave_delay = timeNow
+            if(timeNow == wave_delay):
+                print("time update to: "+ str(wave_delay) )
+            play_obj = wave_obj.play()
+            play_obj.wait_done()
+        else:
+            print("cd:"+str(timeNow-wave_delay)+" sec")
     del draw
     #for detectedObject in classArr:
     #    draw = ImageDraw.Draw(image)
     #    fontObj = ImageFont.truetype(font='NotoSansCJK-Medium.ttc', size=30)
     #    draw.text(np.array([0,40]), classArr[classArr.index(detectedObject)], fill=(255, 255, 255), font=fontObj)
     #    del draw
-    return np.array(image),classArr
+    return np.array(image),wave_delay
 
 
 def array_to_image(arr):
@@ -137,7 +145,7 @@ def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45):
     return res
 
 
-def pipeline(img):
+def pipeline(img,wave_delay):
     # image data transform
     # img - cv image
     # im - yolo image
@@ -149,14 +157,15 @@ def pipeline(img):
     toc = time.time()
     print(toc - tic, result)
 
-    img_final,cArr = draw_boxes(img, result)
-    return img_final,cArr
+    img_final,wave_delay = draw_boxes(img, result,wave_delay)
+    return img_final,wave_delay
 
 
 count_frame, process_every_n_frame = 0, 1
 # get camera device
 cap = cv2.VideoCapture(0)
 wave_obj = sa.WaveObject.from_wave_file("./mask.wav")
+wave_delay = time.time()
 
 while(True):
     # get a frame
@@ -169,7 +178,7 @@ while(True):
 
     # if running slow on your computer, try process_every_n_frame = 10
     if count_frame % process_every_n_frame == 0:
-        tmp, arr = pipeline(img)
+        tmp, wave_delay = pipeline(img,wave_delay)
         cv2.imshow("YOLO", tmp)
         #arr.append(str(arr.count('person')) + "")
         #with open("label.txt","a") as fs:
