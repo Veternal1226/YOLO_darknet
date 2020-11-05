@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw, ImageFont
 import cv2
 import darknet as dn
 import simpleaudio as sa
+from multiprocessing import Process
+import argparse
 
 # prepare YOLO
 net = dn.load_net(str.encode("cfg/yolov2-tiny.cfg"),
@@ -14,6 +16,13 @@ meta = dn.load_meta(str.encode("cfg/coco.data"))
 
 # box colors
 box_colors = None
+
+def playsound(timeNow,wave_delay):
+    if (DEBUG):
+        print("trigger by: "+str(timeNow)+" - "+str(wave_delay)+" = "+str(timeNow - wave_delay)+" sec")
+    play_obj = wave_obj.play()
+    play_obj.wait_done()
+    return 
 
 
 def generate_colors(num_classes):
@@ -91,19 +100,27 @@ def draw_boxes(img, result,wave_delay):
     draw = ImageDraw.Draw(image)
     draw.text(np.array([0,0]), str('目前在場人數：　')+str(classArr.count('person')), fill=(255, 255, 255), font=fontCount)
     # if person count too many (4) , draw notice message
-    if(classArr.count('person')>0):
+    if (classArr.count('person') >= MAXPEOPLE ):
         timeNow = time.time()
         draw.rectangle([0,50,480,90],fill=(0,0,255))
-        draw.text(np.array([0,40]), str('請保持社交距離或戴上口罩'), fill=(255, 255, 255), font=fontCount)
-        if( (timeNow - wave_delay) >10 ):
-            print("\ntrigger by: "+str(timeNow)+" - "+str(wave_delay)+" = "+str(timeNow - wave_delay)+" sec\n")
-            wave_delay = timeNow
-            if(timeNow == wave_delay):
-                print("time update to: "+ str(wave_delay) )
-            play_obj = wave_obj.play()
-            play_obj.wait_done()
+        draw.text(np.array([0,40]), str('請戴上口罩或保持社交距離'), fill=(255, 255, 255), font=fontCount)
+        if( (timeNow - wave_delay) > COOLDOWN ):
+            try:
+                p.terminate()
+            except Exception as e:
+                if (DEBUG):
+                    print(e)
+                else:
+                    pass
+            if (VOICEOUT):
+                p = Process(target=playsound, args=(timeNow,wave_delay))
+                p.start()
+                wave_delay = timeNow
+                if (DEBUG):
+                    print("time update to: "+ str(wave_delay) )
         else:
-            print("cd:"+str(timeNow-wave_delay)+" sec")
+            if (DEBUG):
+                print("cd:"+str(timeNow-wave_delay)+" sec")
     del draw
     #for detectedObject in classArr:
     #    draw = ImageDraw.Draw(image)
@@ -155,17 +172,31 @@ def pipeline(img,wave_delay):
     tic = time.time()
     result = detect(net, meta, im)
     toc = time.time()
-    print(toc - tic, result)
+    if (DEBUG):
+        print(toc - tic, result)
 
     img_final,wave_delay = draw_boxes(img, result,wave_delay)
     return img_final,wave_delay
-
 
 count_frame, process_every_n_frame = 0, 1
 # get camera device
 cap = cv2.VideoCapture(0)
 wave_obj = sa.WaveObject.from_wave_file("./mask.wav")
 wave_delay = time.time()
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--debug", type=int, default=0)
+parser.add_argument("--voiceout", type=int, default=1)
+parser.add_argument("--maxpeople", type=int, default=5)
+parser.add_argument("--cooldown", type=int, default=10)
+
+args = parser.parse_args()
+DEBUG = args.debug
+VOICEOUT = args.voiceout
+MAXPEOPLE = args.maxpeople
+COOLDOWN = args.cooldown
+if (DEBUG):
+    print(DEBUG,VOICEOUT,MAXPEOPLE,COOLDOWN)
 
 while(True):
     # get a frame
