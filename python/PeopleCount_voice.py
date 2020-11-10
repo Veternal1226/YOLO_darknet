@@ -59,6 +59,7 @@ def draw_boxes(img, result,wave_delay):
         index += 1
         class_name, class_score, (x, y, w, h) = objection
         # print(name, score, x, y, w, h)
+        # if object is not person: not to print
         if(class_name.decode('utf-8') != 'person'):
             continue
         left = int(x - w / 2)
@@ -91,15 +92,15 @@ def draw_boxes(img, result,wave_delay):
             fill=box_colors[index - 1])
         draw.text(text_origin, label, fill=(255, 255, 255), font=font)
         del draw
-    # draw person count backscreen
+    # draw person counter backscreen
     drawBlk = ImageDraw.Draw(image,'RGBA')
     fontCount = ImageFont.truetype(font='NotoSansCJK-Medium.ttc', size=40)
     drawBlk.rectangle([0,10,400,50],fill=(0,0,0,int(255*0.5))) #black+opacity(0.5)=grey
     del drawBlk
-    # draw person count number
+    # draw person counter number
     draw = ImageDraw.Draw(image)
     draw.text(np.array([0,0]), str('目前在場人數：　')+str(classArr.count('person')), fill=(255, 255, 255), font=fontCount)
-    # if person count too many (4) , draw notice message
+    # if person counter too many (MAXPEOPLE) , draw notice message
     if (classArr.count('person') >= MAXPEOPLE ):
         timeNow = time.time()
         draw.rectangle([0,50,480,90],fill=(0,0,255))
@@ -122,6 +123,7 @@ def draw_boxes(img, result,wave_delay):
             if (DEBUG):
                 print("cd:"+str(timeNow-wave_delay)+" sec")
     del draw
+    # the code from 126 to 131 is for identify every object
     #for detectedObject in classArr:
     #    draw = ImageDraw.Draw(image)
     #    fontObj = ImageFont.truetype(font='NotoSansCJK-Medium.ttc', size=30)
@@ -181,6 +183,8 @@ def pipeline(img,wave_delay):
 count_frame, process_every_n_frame = 0, 1
 # get camera device
 cap = cv2.VideoCapture(0)
+window_name = "YOLO"
+cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 wave_obj = sa.WaveObject.from_wave_file("./mask.wav")
 wave_delay = time.time()
 
@@ -189,31 +193,37 @@ parser.add_argument("--debug", type=int, default=0, help="Debug mode: 0:close, 1
 parser.add_argument("--voiceout", type=int, default=1, help="Voice reminder: 0:close, 1:open.")
 parser.add_argument("--maxpeople", type=int, default=5, help="Notification threshold (People). type:int")
 parser.add_argument("--cooldown", type=int, default=10, help="Voice interval. type:int")
+parser.add_argument("--fullscreen", type=int, default=1, help="Full screen: 0:normal screen, 1:full screen.")
 
 args = parser.parse_args()
 DEBUG = args.debug
 VOICEOUT = args.voiceout
 MAXPEOPLE = args.maxpeople
 COOLDOWN = args.cooldown
+FULLSCREEN = args.fullscreen
 if (DEBUG):
     print(DEBUG,VOICEOUT,MAXPEOPLE,COOLDOWN)
+if (FULLSCREEN):
+    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+ 
 
 while(True):
     # get a frame
-    ret, frame = cap.read()
+    try:
+        ret, frame = cap.read()
+    except Exception as e:
+        if (DEBUG):
+            print(e)
     count_frame += 1
 
     # show a frame
-    img = cv2.resize(frame, (0, 0), fx=1, fy=1)  # resize image half
+    #img = cv2.resize(frame, (0, 0), fx=1, fy=1)  # resize image half
     #cv2.imshow("Video", img)
 
     # if running slow on your computer, try process_every_n_frame = 10
     if count_frame % process_every_n_frame == 0:
-        tmp, wave_delay = pipeline(img,wave_delay)
-        cv2.imshow("YOLO", tmp)
-        #arr.append(str(arr.count('person')) + "")
-        #with open("label.txt","a") as fs:
-            #fs.write(",".join(arr))
+        tmp, wave_delay = pipeline(frame,wave_delay)
+        cv2.imshow(window_name, tmp)
 
     # press keyboard 'q' to exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
